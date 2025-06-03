@@ -1,72 +1,60 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #define PORT 8080
-#define BUFFER_SIZE 256
+#define BUFFER_SIZE 1024
 
-int main(int argc, char* argv[]) {
-    // filling address struct
-    struct sockaddr_in address;
-    memset(&address, 0, sizeof(address));  // Обнуляем структуру
-    address.sin_family = AF_INET;
-    address.sin_port = htons(PORT);
-    address.sin_addr.s_addr = INADDR_ANY;
+int main() {
+    int server_fd, client_fd;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t client_len = sizeof(client_addr);
+    char buffer[BUFFER_SIZE];
 
-    // socket creation
-    int server_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_socket < 0) {
-        perror("Failed to create socket...");
+    // Создание сокета
+    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd == -1) {
+        perror("Fale socket");
         exit(EXIT_FAILURE);
     }
 
-    // socket binding
-    if (bind(server_socket, (struct sockaddr*)&address, sizeof(address)) < 0) {
-        perror("Failed to bind socket...");
-        close(server_socket);
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(PORT);
+
+    if (bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        perror("Fale binding");
+        close(server_fd);
         exit(EXIT_FAILURE);
     }
 
-    // socket listening
-    if (listen(server_socket, 5) < 0) {
-        perror("Failed to listen socket...");
-        close(server_socket);
+    if (listen(server_fd, 1) < 0) {
+        perror("Fale listening");
+        close(server_fd);
         exit(EXIT_FAILURE);
     }
 
-    printf("Server is listening on port %d...\n", PORT);
+    printf("Сервер запущен и ожидает подключения на порту %d...\n", PORT);
 
-    // main server loop
-    while (1) {
-        // accepting connection
-        int client_socket = accept(server_socket, NULL, NULL);
-        if (client_socket < 0) {
-            perror("Failed to accept connection...");
-            continue;  // Продолжаем работу после ошибки
-        }
-
-        printf("Client connected!\n");
-
-        // receiving data
-        char buffer[BUFFER_SIZE] = {0};
-        ssize_t bytes_received = recv(client_socket, buffer, BUFFER_SIZE - 1, 0);
-
-        if (bytes_received < 0) {
-            perror("Failed to receive data");
-        } else {
-            buffer[bytes_received] = '\0';
-            printf("Received: %s\n", buffer);  // Выводим всё сообщение
-        }
-
-        // closing client socket
-        close(client_socket);
+    client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
+    if (client_fd < 0) {
+        perror("Fale connections");
+        close(server_fd);
+        exit(EXIT_FAILURE);
     }
 
-    // closing server socket (эта часть кода никогда не выполнится в текущей реализации)
-    close(server_socket);
-    return EXIT_SUCCESS;
+    int bytes_received = recv(client_fd, buffer, BUFFER_SIZE - 1, 0);
+    if (bytes_received > 0) {
+        buffer[bytes_received] = '\0';
+        printf("Get message: %s\n", buffer);
+    } else {
+        perror("Fale data");
+    }
+
+    close(client_fd);
+    close(server_fd);
+
+    return 0;
 }
