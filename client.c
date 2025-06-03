@@ -1,54 +1,46 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
 
+#define SERVER_IP "127.0.0.1"
 #define PORT 8080
-#define SERVER_IP "127.0.0.1"  // Локальный адрес для тестирования
 
-int main(int argc, char* argv[]) {
-    // filling address struct
-    struct sockaddr_in server_address;
-    memset(&server_address, 0, sizeof(server_address));  // Обнуляем структуру
-    server_address.sin_family = AF_INET;
-    server_address.sin_port = htons(PORT);
-    
-    // Преобразование IP-адреса
-    if (inet_pton(AF_INET, SERVER_IP, &server_address.sin_addr) <= 0) {
-        perror("Invalid address/ Address not supported");
+int main() {
+    int sock_fd;
+    struct sockaddr_in server_addr;
+    sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+    char message[] = "Богосьян Алик Альбертович ККСО-26-24 1 курс";
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(PORT);
+    if (inet_pton(AF_INET, SERVER_IP, &server_addr.sin_addr) <= 0) {
+        perror("Неверный адрес");
+        close(sock_fd);
         exit(EXIT_FAILURE);
     }
 
-    // socket creation
-    int network_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (network_socket < 0) {
-        perror("Failed to create socket...");
+    if (sock_fd == -1) {
+        perror("Ошибка при создании сокета");
         exit(EXIT_FAILURE);
     }
 
-    // connecting to server
-    if (connect(network_socket, (struct sockaddr*)&server_address, sizeof(server_address)) < 0) {
-        perror("Failed to connect to server...");
-        close(network_socket);
+    if (connect(sock_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        perror("Ошибка при подключении");
+        close(sock_fd);
         exit(EXIT_FAILURE);
     }
 
-    // sending information
-    char message[] = "Богосьян Алик Альбертович ККСО-26-24";  
-    ssize_t bytes_sent = send(network_socket, message, strlen(message), 0);
-    
-    if (bytes_sent < 0) {
-        perror("Failed to send message");
-    } else {
-        printf("Message sent successfully: %s\n", message);
+    if (send(sock_fd, message, strlen(message), 0) < 0) {
+        perror("Ошибка при отправке сообщения");
+        close(sock_fd);
+        exit(EXIT_FAILURE);
     }
 
-    // closing socket
-    close(network_socket);
+    printf("Сообщение отправлено серверу: %s\n", message);
 
-    return EXIT_SUCCESS;
+    close(sock_fd);
+
+    return 0;
 }
